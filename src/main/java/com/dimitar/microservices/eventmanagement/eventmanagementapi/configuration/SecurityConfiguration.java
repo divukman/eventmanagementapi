@@ -1,12 +1,16 @@
 package com.dimitar.microservices.eventmanagement.eventmanagementapi.configuration;
 
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Configuration
+@EnableGlobalMethodSecurity(prePostEnabled = true)
 public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 
 
@@ -17,18 +21,29 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
      */
     @Override
     protected void configure(AuthenticationManagerBuilder auth) throws Exception {
-       auth.inMemoryAuthentication()
-               .withUser("dimitar").password("dimitar").roles("USER").and()
-               .withUser("admin").password("admin").roles("ADMIN");
-    }
+        final PasswordEncoder passwordEncoder = getPasswordEncoder();
 
-    @Override
-    public void configure(WebSecurity web) throws Exception {
-        super.configure(web);
+       auth.inMemoryAuthentication()
+               .passwordEncoder(passwordEncoder)
+               .withUser("dimitar").password(passwordEncoder.encode("dimitar")).roles("USER").and()
+               .withUser("admin").password(passwordEncoder.encode("admin")).roles("ADMIN");
     }
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
-        super.configure(http);
+        http
+             .httpBasic()
+             .and()
+                .authorizeRequests()
+                .antMatchers(HttpMethod.POST, "/events").hasRole("ADMIN")
+                .antMatchers(HttpMethod.PUT, "/events/**").hasRole("ADMIN")
+                .antMatchers(HttpMethod.PATCH, "/events/**").hasRole("ADMIN")
+             .and()
+                .csrf().disable();
     }
+
+    PasswordEncoder getPasswordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
 }
